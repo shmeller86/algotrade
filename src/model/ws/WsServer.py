@@ -1,6 +1,10 @@
 import asyncio
 import websockets
 import threading
+import logging
+import traceback
+
+logger = logging.getLogger("algotrade.WsServer")
 
 
 class WsServer(threading.Thread):
@@ -36,19 +40,22 @@ class WsServer(threading.Thread):
         return self._loop
 
     def register(self, websocket):
-        self._connects.add(websocket)
-        print('registered')
+        try:
+            self._connects.add(websocket)
+            logger.debug('New client connected to server.')
+        except Exception as e:
+            logger.error("Uncaught exception: %s. \n %s", traceback.format_exc(), e)
 
     def unregister(self, websocket):
         try:
             self._connects.remove(websocket)
             self._on_disconnect()
-            print('unregistered')
+            logger.debug('Client the disconnect.')
         except KeyError:
-            pass
+            logger.error("uncaught exception: %s", traceback.format_exc())
 
     def shutdown(self):
-        print("[!] Shutdown ws server..")
+        logger.debug("[!] Shutdown ws server..")
         self._loop.call_soon_threadsafe(self._loop.stop)
 
     async def receive(self, websocket, _):
@@ -58,6 +65,6 @@ class WsServer(threading.Thread):
             async for raw_msg in websocket:
                 self._on_message(raw_msg)
         except websockets.ConnectionClosed:
-            pass
+            logger.error("uncaught exception: %s", traceback.format_exc())
         finally:
             self.unregister(websocket)

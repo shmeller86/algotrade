@@ -1,7 +1,10 @@
 import websocket
 import threading
 import json
+import logging
+import traceback
 
+logger = logging.getLogger("algotrade.WsClient")
 
 class WsClient(threading.Thread):
     def __init__(self, url=None, on_open=None, on_message=None, on_error=None, on_close=None):
@@ -17,6 +20,7 @@ class WsClient(threading.Thread):
         self.on_close_cb = on_close
         self.on_error_cb = on_error
 
+        websocket.enableTrace(True)
         self._ws = websocket.WebSocketApp(
             url=self._ws_url,
             on_message=self.on_message,
@@ -25,12 +29,9 @@ class WsClient(threading.Thread):
             on_open=self.on_open
         )
 
-    def run(self):
-        self.connect()
-        # threading.Thread(target=self.connect())
-
     def connect(self):
         self._is_stopped = False
+        # threading.Thread(target=self._ws.run_forever(sslopt={"check_hostname": False})).start()
         self._ws.run_forever(sslopt={"check_hostname": False})
 
     def stop(self):
@@ -56,13 +57,13 @@ class WsClient(threading.Thread):
             self.on_error_cb()
 
     def on_close(self):
-        print("### websocket closed ###")
+        logger.debug("### websocket closed ###")
         self._is_connected = False
         if self.on_close_cb:
             self.on_close_cb()
 
     def on_open(self):
-        print("### websocket connected ###")
+        logger.debug("### websocket connected ###")
         self._is_connected = True
 
         if self.on_open_cb:

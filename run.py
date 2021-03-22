@@ -2,9 +2,16 @@ from dotenv import load_dotenv
 from argparse import ArgumentParser
 from src.model.market.binance.Binance import Binance
 from src.model.ws.RunServer import *
+from src.model.Base import Logging
+import logging
+import traceback
 
 load_dotenv()
 
+Logging()
+logger = logging.getLogger("algotrade.initial")
+
+logger.info("============= START APPLICATION =============")
 core = {
     "bnc": Binance,
 }
@@ -25,8 +32,17 @@ if args.markets:
     args.markets = args.markets.split(',')
 
 # run server the ws and the api
-if args.server:
-    run_server()
-else:
-    for market in args.markets:
-        core[market](run_args=vars(args))
+try:
+    if args.server:
+        run_server()
+        logger.debug("Wait 2 sec...")
+        time.sleep(2)
+        logger.debug("Servers is run!")
+        for market in args.markets:
+            core[market](run_args=vars(args))
+    else:
+        for market in args.markets:
+            core[market](run_args=vars(args))
+except:
+    logger.error("uncaught exception: %s", traceback.format_exc())
+

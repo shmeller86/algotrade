@@ -2,9 +2,13 @@ import pprint as p
 import pandas as pd
 from datetime import datetime
 from src.model.Base import Base
+import os
+import logging
+import traceback
 
 
 class Engine:
+    logger = None
     REQUEST_URL = {
         "F_KLINES": ["GET",
                      "https://fapi.binance.com/fapi/v1/klines?symbol=%s&limit=%s&interval=%s"],
@@ -23,8 +27,9 @@ class Engine:
 
     def __init__(self, run_args=None):
         self.run_args = run_args
+        self.logger = logging.getLogger("algotrade.Binance")
         self.b = Base()
-        p.pprint(run_args)
+        self.logger.debug(str(run_args))
 
     def get_top_trader_ratio(self):
         """
@@ -146,18 +151,23 @@ class Engine:
             500	            10
             1000	        20
         """
-        self.candle = self.b.r_get(self.REQUEST_URL['ORDER_BOOK'][1] % (self.run_args['pairs'][0], self.run_args['limit']))
+        try:
+            self.candle = self.b.r_get(self.REQUEST_URL['ORDER_BOOK'][1] % (self.run_args['pairs'][0], self.run_args['limit']))
 
-        obj = {
-            "type": "depth",
-            "payload": {
-                "pair": self.run_args['pairs'][0],
-                "tx": "get",
-                "data": {
-                    "a": self.candle['asks'],
-                    "b": self.candle['bids'],
+            obj = {
+                "type": "depth",
+                "payload": {
+                    "pair": self.run_args['pairs'][0],
+                    "tx": "get",
+                    "data": {
+                        "a": self.candle['asks'],
+                        "b": self.candle['bids'],
+                    }
                 }
             }
-        }
-
-        return obj
+            self.logger.debug(str(obj))
+        except Exception as e:
+            self.logger.error("Uncaught exception: %s. \n %s", traceback.format_exc(), e)
+            os._exit(0)
+        finally:
+            return obj
