@@ -24,7 +24,7 @@ if args.pairs:
 if args.markets:
     args.markets = args.markets.split(',')
 
-# run server the ws and the api
+# run server the ws and the api test
 if args.server:
     run_server()
 else:
