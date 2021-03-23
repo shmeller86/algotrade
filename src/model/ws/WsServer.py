@@ -1,70 +1,97 @@
-import asyncio
-import websockets
-import threading
 import logging
+import json
+import pprint
 import traceback
+from json import JSONDecodeError
 
-logger = logging.getLogger("algotrade.WsServer")
+from src.model.ws.SocketBase import SocketBase
 
 
-class WsServer(threading.Thread):
-    def __init__(self, host, port, on_message, on_disconnect):
-        super().__init__()
+class WsServer(SocketBase):
 
-        self._host = host
-        self._port = port
+    def __init__(self):
+        super(WsServer, self).__init__()
+        self.server_sock.listen()
+        self.line = {}
+        self.logger = logging.getLogger("algotrade.WsServer")
 
-        self._on_message = on_message
-        self._on_disconnect = on_disconnect
+    async def main(self):
+        await self.main_loop.create_task(self.accept_socket())
 
-        self._server = None
-        self._connects = set()
-        self._loop = asyncio.new_event_loop()
+    async def accept_socket(self):
+        while True:
+            client_sock, addr = await self.main_loop.sock_accept(self.server_sock)
+            if addr:
+                self.logger.info(f"connection from {addr}")
+            self.main_loop.create_task(self.listen_socket(client_sock, addr))
 
-    def run(self):
-        asyncio.set_event_loop(self._loop)
+    async def listen_socket(self, client_sock=None, addr=None):
+        if not client_sock or not addr:
+            return
 
-        start_server = websockets.server.serve(
-            self.receive,
-            self._host,
-            self._port,
-            ping_interval=120,
-            ping_timeout=120,
-            max_size=None
-        )
+        while True:
+            request = await self.main_loop.sock_recv(client_sock, 4096)
+            self.logger.debug(f"Receive from {addr} : {request}")
 
-        self._server = asyncio.get_event_loop().run_until_complete(start_server)
-        asyncio.get_event_loop().run_forever()
+            try:
+                obj = json.loads(request.decode('utf-8').replace('\n', ''))
+            except JSONDecodeError as e:
+                await self.send_data(client_sock, 'BAD_REQUEST\n')
+                self.logger.error("Uncaught exception: %s. \n %s", traceback.format_exc(), e)
+            except Exception as e:
+                self.logger.error("Uncaught exception: %s. \n %s", traceback.format_exc(), e)
+            else:
+                await self.parse_receive_message(obj)
+                await self.send_data(client_sock, 'OK\n')
 
-    def get_loop(self):
-        return self._loop
+    async def send_data(self, client_sock=None, data=None):
+        response = data.encode()
+        await self.main_loop.sock_sendall(client_sock, response)
 
-    def register(self, websocket):
+    async def parse_receive_message(self, message):
+        # [{"type": "depth", "payload": {"pair": "UNIUSDT", "tx": "get", "data": {"a": [["1", "2"]], "b": [["1", "2"]]}}}]
+        # obj = {
+        #     "type": "depth",
+        #     "payload": {
+        #         "pair": self.run_args['pairs'][0],
+        #         "tx": "get",
+        #         "data": {
+        #             "a": self.candle['asks'],
+        #             "b": self.candle['bids'],
+        #         }
+        #     }
+        # }
         try:
-            self._connects.add(websocket)
-            logger.debug('New client connected to server.')
+            for item in message:
+                # Глубина стакана.
+                if item['type'] == 'depth':
+
+                    # Если нет, то создаем.
+                    if item['type'] not in self.line.keys():
+                        self.line[item['type']] = {}
+
+                    # Если нет пары, то создаем.
+                    if item['payload']['pair'] not in self.line[item['type']].keys():
+                        self.line[item['type']][item['payload']['pair']] = {"a": {}, "b": {}}
+
+                    # Обновляем БИДы
+                    for bid in item['payload']['data']['b']:
+                        self.line[item['type']][item['payload']['pair']]['b'][bid[0]] = float(bid[1])
+                    # Обновляем АСКи
+                    for ask in item['payload']['data']['a']:
+                        self.line[item['type']][item['payload']['pair']]['a'][ask[0]] = float(ask[1])
+
+                    # Обновляем сумму АСКов
+                    self.line[item['type']][item['payload']['pair']]['sum_ask'] = float(sum(
+                        self.line[item['type']][item['payload']['pair']]['a'][x] for x in
+                        self.line[item['type']][item['payload']['pair']]['a']))
+                    # Обновляем сумму БИДов
+                    self.line[item['type']][item['payload']['pair']]['sum_bid'] = float(sum(
+                        self.line[item['type']][item['payload']['pair']]['b'][x] for x in
+                        self.line[item['type']][item['payload']['pair']]['b']))
         except Exception as e:
-            logger.error("Uncaught exception: %s. \n %s", traceback.format_exc(), e)
+            self.logger.error("Uncaught exception: %s. \n %s", traceback.format_exc(), e)
 
-    def unregister(self, websocket):
-        try:
-            self._connects.remove(websocket)
-            self._on_disconnect()
-            logger.debug('Client the disconnect.')
-        except KeyError:
-            logger.error("uncaught exception: %s", traceback.format_exc())
 
-    def shutdown(self):
-        logger.debug("[!] Shutdown ws server..")
-        self._loop.call_soon_threadsafe(self._loop.stop)
 
-    async def receive(self, websocket, _):
-        self.register(websocket)
 
-        try:
-            async for raw_msg in websocket:
-                self._on_message(raw_msg)
-        except websockets.ConnectionClosed:
-            logger.error("uncaught exception: %s", traceback.format_exc())
-        finally:
-            self.unregister(websocket)

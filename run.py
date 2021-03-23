@@ -7,11 +7,11 @@ import logging
 import traceback
 
 load_dotenv()
-
 Logging()
 logger = logging.getLogger("algotrade.initial")
 
 logger.info("============= START APPLICATION =============")
+
 core = {
     "bnc": Binance,
 }
@@ -22,7 +22,6 @@ parser.add_argument("-i", "--interval", dest="interval", help="interval", defaul
 parser.add_argument("-s", "--server", dest="server", help="server", default=False)
 parser.add_argument("-l", "--limit", dest="limit", help="limit", default='30')
 parser.add_argument("-t", "--test", dest="backtest", help="backtest")
-parser.set_defaults(threads=1)
 args = parser.parse_args()
 
 if args.pairs:
@@ -31,18 +30,24 @@ if args.pairs:
 if args.markets:
     args.markets = args.markets.split(',')
 
-# run server the ws and the api
 try:
-    if args.server:
-        run_server()
-        logger.debug("Wait 2 sec...")
-        time.sleep(2)
-        logger.debug("Servers is run!")
-        for market in args.markets:
-            core[market](run_args=vars(args))
-    else:
-        for market in args.markets:
-            core[market](run_args=vars(args))
-except:
-    logger.error("uncaught exception: %s", traceback.format_exc())
+    for market in args.markets:
+        logger.info(f"Run the '{market}' market")
+        core[market](run_args=vars(args)).start()
+except Exception as e:
+    logger.error("Uncaught exception: %s. \n %s", traceback.format_exc(), e)
+# run server the ws and the api
+# try:
+#     if args.server:
+#         run_server()
+#         logger.debug("Wait 2 sec...")
+#         time.sleep(2)
+#         logger.debug("Servers is run!")
+#         for market in args.markets:
+#             core[market](run_args=vars(args))
+#     else:
+#         for market in args.markets:
+#             core[market](run_args=vars(args))
+# except:
+#     logger.error("uncaught exception: %s", traceback.format_exc())
 
