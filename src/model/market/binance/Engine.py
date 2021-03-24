@@ -5,6 +5,11 @@ from src.model.Base import Base
 import os
 import logging
 import traceback
+import json
+import socket
+import time
+from websocket import create_connection
+import threading
 
 
 class Engine:
@@ -20,16 +25,25 @@ class Engine:
                        "https://fapi.binance.com/fapi/v1/depth?symbol=%s&limit=%s"]
     }
     candle = None
-    run_args = None
     df = None
     debug = True
     b = None
 
-    def __init__(self, run_args=None):
-        self.run_args = run_args
+    pairs = None
+    interval = None
+    limit = None
+    test = None
+    wsc = None
+
+    def __init__(self, pairs=None, interval=None, limit=None, test=False, wsc=None):
         self.logger = logging.getLogger("algotrade.Binance")
         self.b = Base()
-        self.logger.debug(str(run_args))
+        self.pairs = pairs
+        self.interval = interval
+        self.limit = limit
+        self.test = test
+        self.wsc = wsc
+
 
     def get_top_trader_ratio(self):
         """
@@ -152,12 +166,13 @@ class Engine:
             1000	        20
         """
         try:
-            self.candle = self.b.r_get(self.REQUEST_URL['ORDER_BOOK'][1] % (self.run_args['pairs'][0], self.run_args['limit']))
+            time.sleep(5)
+            self.candle = self.b.r_get(self.REQUEST_URL['ORDER_BOOK'][1] % (self.pairs[0], self.limit))
 
             obj = {
                 "type": "depth",
                 "payload": {
-                    "pair": self.run_args['pairs'][0],
+                    "pair": self.pairs[0],
                     "tx": "get",
                     "data": {
                         "a": self.candle['asks'],
@@ -170,4 +185,32 @@ class Engine:
             self.logger.error("Uncaught exception: %s. \n %s", traceback.format_exc(), e)
             os._exit(0)
         finally:
-            return obj
+            if self.wsc:
+                self.wsc.send(data=str([obj]).replace("'", '"'))
+
+    def ws_order_book(self):
+        ws = create_connection("wss://fstream.binance.com/ws/uniusdt@depth20@100ms")
+
+        while True:
+            try:
+                data = ws.recv()
+                data = json.loads(data)
+                # p.pprint(data)
+                obj = {
+                    "type": "depth",
+                    "payload": {
+                        "pair": self.pairs[0],
+                        "tx": "wss",
+                        "data": {
+                            "a": data['a'],
+                            "b": data['b'],
+                        }
+                    }
+                }
+                self.logger.debug(str(obj))
+            except Exception as e:
+                self.logger.error("Uncaught exception: %s. \n %s", traceback.format_exc(), e)
+                os._exit(0)
+            finally:
+                if self.wsc:
+                    self.wsc.send(data=str([obj]).replace("'", '"'))

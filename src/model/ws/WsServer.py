@@ -2,7 +2,10 @@ import logging
 import json
 import pprint
 import traceback
+import asyncio
+import socket
 from json import JSONDecodeError
+import os
 
 from src.model.ws.SocketBase import SocketBase
 
@@ -11,7 +14,11 @@ class WsServer(SocketBase):
 
     def __init__(self):
         super(WsServer, self).__init__()
+        self.server_sock.bind((os.getenv("WS_HOST"), int(os.getenv("WS_PORT"))))
+        self.server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_sock.setblocking(False)
         self.server_sock.listen()
+
         self.line = {}
         self.logger = logging.getLogger("algotrade.WsServer")
 
