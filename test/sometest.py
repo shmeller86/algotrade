@@ -89,35 +89,24 @@ import random
 fig = plt.figure()
 bar = ''
 def buildmebarchart(i=int):
-    # iv = min(i, len([1,2,3,4,5,6,7,8,9,10])-1)
-    # objects = [1,2,3,4,5,6,7,8,9,10]
-    # y_pos = np.arange(len(objects))
-    # performance = [1,2,3,4,5,6,7,8,9,10]
-    # if bar == 'vertical':
-    #     plt.bar(y_pos, performance, align='center', color=['green'])
-    #     plt.xticks(y_pos, objects)
-    #     plt.ylabel('Deaths')
-    #     plt.xlabel('Countries')
-    #     plt.title('Deaths per Country \n' + str(df1.index[iv].strftime('%y-%m-%d')))
-    # else:
-    # print(y_pos)
+    prices = ['Nuclear', 'Hydro', 'Gas', 'Oil', 'Coal', 'Biofuel']
+    energy = []
+    variance = [1, 2, 7, 4, 2, 3]
 
-    b = []
-    c = []
+    x_pos = [i for i, _ in enumerate(prices)]
+
+
     while True:
-        b.append(random.randint(1,11))
-        c.append(random.randint(1,11))
-        if len(b) == 10:
+        energy.append(random.randint(1,1000))
+        if len(energy) == 6:
             break
-    # c = [x for x in [randrange(0, 10)]]
-    print(b)
-    print([x for x in range(1,11)])
-
-    plt.barh(b, ['Объем 1', 'Объем 2', 'Объем 3', 'Объем 4', 'Объем 5', 'Объем 6', 'Объем 7', 'Объем 8', 'Объем 9', 'Объем 10'], align='center', color=['red'])
-    plt.yticks(c, ['Цена 1', 'Цена 2', 'Цена 3', 'Цена 4', 'Цена 5', 'Цена 6', 'Цена 7', 'Цена 8', 'Цена 9', 'Цена 10'])
-    plt.xlabel('Deaths')
-    plt.ylabel('Countries')
-animator = ani.FuncAnimation(fig, buildmebarchart, interval=100)
+    plt.clf()
+    plt.barh(x_pos, energy, color=['green','green','green','red','red','red'], xerr=None)
+    plt.ylabel("Energy Source")
+    plt.xlabel("Energy Output (GJ)")
+    plt.title("Energy output from various fuel sources")
+    plt.yticks(x_pos, prices)
+animator = ani.FuncAnimation(fig, buildmebarchart, interval=1000)
 plt.show()
 
 

@@ -50,27 +50,40 @@ class Binance:
         self.__ws_server = int(os.getenv('WS_START'))
         self.__api_server = int(os.getenv('API_START'))
 
-    def buildmebarchart(self, i=int):
-        if 'depth' in self.__wss.line:
-            # print(wss.line['depth'])
-            print(self.__wss.line['depth']['UNIUSDT']['sum_ask'])
-            print(self.__wss.line['depth']['UNIUSDT']['sum_bid'])
+    def run_buildbarchart(self):
+        time.sleep(3)
+        fig = plt.figure()
+        animator = ani.FuncAnimation(fig, self.buildmebarchart, interval=100)
+        plt.show()
 
-            iv = min(i, len(self.__wss.line['depth']['UNIUSDT']['sum_ask']) - 1)
-            objects = self.__wss.line['depth']['UNIUSDT']['sum_ask'].max().index
-            y_pos = np.arange(len(objects))
-            performance = self.__wss.line['depth']['UNIUSDT']['sum_ask']
-            if self.__bar == 'vertical':
-                plt.bar(y_pos, performance, align='center', color=['red', 'green', 'blue', 'orange'])
-                plt.xticks(y_pos, objects)
-                plt.ylabel('Deaths')
-                plt.xlabel('Countries')
-                plt.title('Deaths per Country \n')
-            else:
-                plt.barh(y_pos, performance, align='center', color=['red', 'green', 'blue', 'orange'])
-                plt.yticks(y_pos, objects)
-                plt.xlabel('Deaths')
-                plt.ylabel('Countries')
+    def buildmebarchart(self, i=int):
+        # print(self.__wss.line['depth'][''])
+        # prices = ['Nuclear', 'Hydro', 'Gas', 'Oil', 'Coal', 'Biofuel']
+        # energy = []
+
+        prices_a = [x for x in self.__wss.line['depth']['UNIUSDT']['a'].keys()]
+        prices_b = [x for x in self.__wss.line['depth']['UNIUSDT']['b'].keys()]
+        prices = prices_a[:20] + prices_b[:20]
+        green = ['green'] * 20
+        red = ['red'] * 20
+        colors = green + red
+
+        energy_a = [self.__wss.line['depth']['UNIUSDT']['a'][x] for x in self.__wss.line['depth']['UNIUSDT']['a']]
+        energy_b = [self.__wss.line['depth']['UNIUSDT']['b'][x] for x in self.__wss.line['depth']['UNIUSDT']['b']]
+        energy = energy_a[:20] + energy_b[:20]
+
+        x_pos = [i for i, _ in enumerate(prices)]
+
+        # while True:
+        #     energy.append(random.randint(1, 1000))
+        #     if len(energy) == 6:
+        #         break
+        plt.clf()
+        plt.barh(x_pos, energy, color=colors, xerr=None)
+        plt.ylabel("Price")
+        plt.xlabel("Lots")
+        plt.title("Order book for UNIUSDT")
+        plt.yticks(x_pos, prices)
 
     def start(self):
         # Run thread the websocket server for aggregation outside data.
@@ -93,20 +106,28 @@ class Binance:
         thread_bncwss_ob = threading.Thread(target=bnc.ws_order_book)
         thread_bncwss_ob.start()
 
+        # Global request for order book to API binance
         threading.Thread(target=bnc.get_order_book).start()
 
-        fig = plt.figure()
-        animator = ani.FuncAnimation(fig, self.buildmebarchart, interval=100)
-        plt.show()
+        # Create the window with order book
+        threading.Thread(target=self.run_buildbarchart).start()
 
-
-        while True:
-            if 'depth' in self.__wss.line:
-                # print(wss.line['depth'])
-                print(self.__wss.line['depth']['UNIUSDT']['sum_ask'])
-                print(self.__wss.line['depth']['UNIUSDT']['sum_bid'])
-            # wsc.send(data='[{"type": "depth", "payload": {"pair": "UNIUSDT", "tx": "get", "data": {"a": [["1", "2"],["3", "5"]], "b": [["1", "2"]]}}}]')
-            time.sleep(1)
+        # while True:
+        #     if 'depth' in self.__wss.line:
+        #         energy_a = [self.__wss.line['depth']['UNIUSDT']['a'][x] for x in self.__wss.line['depth']['UNIUSDT']['a']]
+        #         energy_b = [self.__wss.line['depth']['UNIUSDT']['b'][x] for x in self.__wss.line['depth']['UNIUSDT']['b']]
+        #         energy = energy_a[:5] + energy_b[:5]
+        #         print(energy)
+        #
+        #         prices_a = [x for x in self.__wss.line['depth']['UNIUSDT']['a'].keys()]
+        #         prices_b = [x for x in self.__wss.line['depth']['UNIUSDT']['b'].keys()]
+        #         prices = prices_a[:5] + prices_b[:5]
+        #         print(prices)
+        #         print(self.__wss.line['depth']['UNIUSDT'])
+        #         print(self.__wss.line['depth']['UNIUSDT']['sum_ask'])
+        #         print(self.__wss.line['depth']['UNIUSDT']['sum_bid'])
+        #     # wsc.send(data='[{"type": "depth", "payload": {"pair": "UNIUSDT", "tx": "get", "data": {"a": [["1", "2"],["3", "5"]], "b": [["1", "2"]]}}}]')
+        #     time.sleep(1)
 
 
         # bnc = Engine(pairs=self.__pairs, limit=self.__limit, interval=self.__interval,test=self.__backtest, wsc=wsc)
