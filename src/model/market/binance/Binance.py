@@ -40,6 +40,7 @@ class Binance:
 
     __wss = None
     __bar = ''
+    __bnc = None
 
     def __init__(self, *args, **kwargs):
         self.logger = logging.getLogger("algotrade.Binance")
@@ -56,21 +57,23 @@ class Binance:
         animator = ani.FuncAnimation(fig, self.buildmebarchart, interval=100)
         plt.show()
 
-    def buildmebarchart(self, i=int):
+    def buildmebarchart(self, i=int, offset=50):
         # print(self.__wss.line['depth'][''])
         # prices = ['Nuclear', 'Hydro', 'Gas', 'Oil', 'Coal', 'Biofuel']
         # energy = []
 
         prices_a = [x for x in self.__wss.line['depth']['UNIUSDT']['a'].keys()]
         prices_b = [x for x in self.__wss.line['depth']['UNIUSDT']['b'].keys()]
-        prices = prices_a[:20] + prices_b[:20]
+        # prices = prices_a[:20] + prices_b[:20]
         green = ['green'] * 20
         red = ['red'] * 20
         colors = green + red
 
         energy_a = [self.__wss.line['depth']['UNIUSDT']['a'][x] for x in self.__wss.line['depth']['UNIUSDT']['a']]
         energy_b = [self.__wss.line['depth']['UNIUSDT']['b'][x] for x in self.__wss.line['depth']['UNIUSDT']['b']]
-        energy = energy_a[:20] + energy_b[:20]
+        # energy = energy_a[:20] + energy_b[:20]
+
+        prices, energy = self.__bnc.reformate_volume(1, prices_a[:offset] + prices_b[:offset], energy_a[:offset] + energy_b[:offset])
 
         x_pos = [i for i, _ in enumerate(prices)]
 
@@ -102,26 +105,29 @@ class Binance:
         thread_wc = threading.Thread(target=wsc.run)
         thread_wc.start()
 
-        bnc = Engine(pairs=self.__pairs, limit=self.__limit, interval=self.__interval, test=self.__backtest, wsc=wsc)
-        thread_bncwss_ob = threading.Thread(target=bnc.ws_order_book)
+        self.__bnc = Engine(pairs=self.__pairs, limit=self.__limit, interval=self.__interval, test=self.__backtest, wsc=wsc)
+        thread_bncwss_ob = threading.Thread(target=self.__bnc.ws_order_book)
         thread_bncwss_ob.start()
 
         # Global request for order book to API binance
-        threading.Thread(target=bnc.get_order_book).start()
+        # threading.Thread(target=self.__bnc.get_order_book).start()
+        # self.__bnc.get_order_book()
 
         # Create the window with order book
-        threading.Thread(target=self.run_buildbarchart).start()
+        # threading.Thread(target=self.run_buildbarchart).start()
+        self.run_buildbarchart()
 
         # while True:
         #     if 'depth' in self.__wss.line:
         #         energy_a = [self.__wss.line['depth']['UNIUSDT']['a'][x] for x in self.__wss.line['depth']['UNIUSDT']['a']]
         #         energy_b = [self.__wss.line['depth']['UNIUSDT']['b'][x] for x in self.__wss.line['depth']['UNIUSDT']['b']]
-        #         energy = energy_a[:5] + energy_b[:5]
+        #
+        #         energy = energy_a[:50] + energy_b[:50]
         #         print(energy)
         #
         #         prices_a = [x for x in self.__wss.line['depth']['UNIUSDT']['a'].keys()]
         #         prices_b = [x for x in self.__wss.line['depth']['UNIUSDT']['b'].keys()]
-        #         prices = prices_a[:5] + prices_b[:5]
+        #         prices = prices_a[:50] + prices_b[:50]
         #         print(prices)
         #         print(self.__wss.line['depth']['UNIUSDT'])
         #         print(self.__wss.line['depth']['UNIUSDT']['sum_ask'])

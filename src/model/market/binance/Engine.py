@@ -214,3 +214,26 @@ class Engine:
             finally:
                 if self.wsc:
                     self.wsc.send(data=str([obj]).replace("'", '"'))
+
+    def reformate_volume(self, digit=int, p=list, v=list):
+        if digit <= 0:
+            return
+        c_p = []
+        c_v = []
+        ch_p = list(p)
+        ch_v = list(v)
+        for i in range(len(p)):
+            if p[i][:-digit] not in c_p:
+                c_p.append(p[i][:-digit])
+                tmp_p_l = list(ch_p)
+                tmp_v_l = list(ch_v)
+                tmp_v = 0.0
+                for i2 in range(len(ch_p)):
+                    if p[i][:-digit] in ch_p[i2]:
+                        tmp_p_l.remove(ch_p[i2])
+                        tmp_v = float("{:.2f}".format(tmp_v + float(ch_v[i2])))
+                        tmp_v_l.remove(ch_v[i2])
+                ch_p = list(tmp_p_l)
+                ch_v = list(tmp_v_l)
+                c_v.append(tmp_v)
+        return c_p, c_v

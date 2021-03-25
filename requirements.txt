@@ -11,6 +11,9 @@ betfairlightweight==1.10.4
 python-dotenv==0.10.3
 websocket_client==0.56.0
 pandas==1.2.3
+PyQt5==5.13
+PyQtChart==5.13
+pyqt5-tools
 matplotlib
 scipy
 seaborn
